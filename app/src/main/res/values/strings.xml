@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">POPULAR MOVIES 2</string>
+
+    <string name="mnu_popular">Most Popular</string>
+    <string name="mnu_top_rated">Top Rated</string>
+    <string name="mnu_favorites">Favorites</string>
+
+    <string name="frag_overview">OVERVIEW</string>
+    <string name="frag_reviews">REVIEWS</string>
+    <string name="frag_trailers">TRAILERS</string>
+
+    <string name="poster_content_description">Movie Poster</string>
+    <string name="no_internet_label">NO INTERNET</string>
+    <string name="welcome_msg">WELCOME TO \nPOPULAR MOVIES</string>
+
+    <string name="search_popular">POPULAR</string>
+    <string name="search_top_rated">TOP RATED</string>
+    <string name="search_favorites">FAVORITES</string>
+</resources>
