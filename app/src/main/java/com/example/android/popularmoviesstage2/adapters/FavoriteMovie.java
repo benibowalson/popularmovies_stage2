@@ -9,18 +9,20 @@ import android.os.Parcelable;
 
 public class FavoriteMovie implements Parcelable {
 
-         String poster_path;
-        String overview;
-         String release_date;
-         int id;
-         String title;
-         double vote_average;
+    String poster_path;
+    String overview;
+    String release_date;
+    int id;
+    int movieID;
+    String title;
+    double vote_average;
 
-    public FavoriteMovie(String poster_path, String overview, String release_date, int id, String title, double vote_average) {
+    public FavoriteMovie(String poster_path, String overview, String release_date, int id, int movieID, String title, double vote_average) {
         this.poster_path = poster_path;
         this.overview = overview;
         this.release_date = release_date;
         this.id = id;
+        this.movieID = movieID;
         this.title = title;
         this.vote_average = vote_average;
     }
@@ -30,6 +32,7 @@ public class FavoriteMovie implements Parcelable {
         overview = in.readString();
         release_date = in.readString();
         id = in.readInt();
+        movieID = in.readInt();
         title = in.readString();
         vote_average = in.readDouble();
     }
@@ -45,6 +48,7 @@ public class FavoriteMovie implements Parcelable {
         dest.writeString(overview);
         dest.writeString(release_date);
         dest.writeInt(id);
+        dest.writeInt(movieID);
         dest.writeString(title);
         dest.writeDouble(vote_average);
     }

@@ -1,7 +1,9 @@
 package com.example.android.popularmoviesstage2;
 
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
@@ -20,24 +22,39 @@ import com.example.android.popularmoviesstage2.adapters.FavoriteMovie;
 import com.example.android.popularmoviesstage2.adapters.Movie;
 import com.example.android.popularmoviesstage2.adapters.MovieAdapter;
 import com.example.android.popularmoviesstage2.data.MovieContract;
-import com.example.android.popularmoviesstage2.utilities.CheckConnectivity;
+import com.example.android.popularmoviesstage2.utilities.MyConstants;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.List;
 
-public class DisplayMovies extends AppCompatActivity implements MovieAdapter.IListenToClicks, LoaderManager.LoaderCallbacks<Cursor> {
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
-    private final int TASK_LOADER_ID = 1;
+public class DisplayMovies extends AppCompatActivity
+        implements MovieAdapter.IListenToClicks, CustomCursorAdapter.IFavClickListener, LoaderManager.LoaderCallbacks<Cursor> {
+
+    private final int TASK_LOADER_ID = 0;
     private static final String TAG = DisplayMovies.class.getSimpleName();
     private CustomCursorAdapter mFavMoviesAdapter;
 
     private String mSearchCriteria;
-    private RecyclerView myRecycler;
     private GridLayoutManager mGridLayout;
-    private MovieAdapter mAdapter;
+    private RecyclerView myRecycler;
+    private MovieAdapter mMovieAdapter;
     private ArrayList<Movie> mMovies;
     private ArrayList<FavoriteMovie> mFavMovies;
     private TextView txtSearchCriteria;
-    private Uri mAndroidURI;
+    private Uri mDownloadURI;
+    private boolean DeviceIsOnline;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,20 +67,20 @@ public class DisplayMovies extends AppCompatActivity implements MovieAdapter.ILi
         myRecycler = (RecyclerView)findViewById(R.id.rv_Recycler);
         myRecycler.setLayoutManager(mGridLayout);
 
+        mMovies = new ArrayList<Movie>();
+
         if(savedInstanceState == null){     //new page
             mSearchCriteria = "POPULAR";
             writePageHeading();
-            CheckConnectivity checker = new CheckConnectivity(this, mSearchCriteria, myRecycler, this);
+            new interNetCheck().execute();
         } else {                            //device rotate, etc
             mSearchCriteria = savedInstanceState.getString("searchCriteria");
             writePageHeading();
                 try {
-                Toast.makeText(this, mSearchCriteria, Toast.LENGTH_LONG).show();
                 if(mSearchCriteria.equals("FAVORITES")){
-                    Toast.makeText(this, "Favs", Toast.LENGTH_LONG).show();
                     mFavMovies = new ArrayList<FavoriteMovie>();
                     mFavMovies = savedInstanceState.getParcelableArrayList("favMoviesList");
-                    mFavMoviesAdapter = new CustomCursorAdapter(this);
+                    mFavMoviesAdapter = new CustomCursorAdapter(this, this);
                     if (mFavMovies.size() > 0){
                         myRecycler.setAdapter(mFavMoviesAdapter);
                     } else {
@@ -76,15 +93,13 @@ public class DisplayMovies extends AppCompatActivity implements MovieAdapter.ILi
                     mMovies = savedInstanceState.getParcelableArrayList("moviesList");
                     if(mMovies == null){
                         Toast.makeText(this, "Null Array", Toast.LENGTH_LONG).show();       //Test: Returns null
+                    } else {
+                        mMovieAdapter = new MovieAdapter(this, mMovies, this);
+                        myRecycler.setAdapter(mMovieAdapter);                                    //App Crashes here
                     }
-
-                    mAdapter = new MovieAdapter(this, mMovies, this);
-                    myRecycler = (RecyclerView)findViewById(R.id.rv_Recycler);
-                    myRecycler.setAdapter(mAdapter);                                    //App Crashes here
-
                 }
 
-            }catch (Exception ex){
+            } catch (Exception ex){
                 Toast.makeText(this, ex.getMessage(),Toast.LENGTH_LONG).show();
             }
         }
@@ -94,17 +109,10 @@ public class DisplayMovies extends AppCompatActivity implements MovieAdapter.ILi
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
 
-
-        Toast.makeText(this, "Saving: " + mSearchCriteria, Toast.LENGTH_LONG).show();
-
         outState.putString("searchCriteria", mSearchCriteria);
         if(mSearchCriteria.equals("FAVORITES")){
             outState.putParcelableArrayList("favMoviesList", mFavMovies);
         } else {
-            if(mMovies == null){
-                Toast.makeText(this, "E don null 0", Toast.LENGTH_LONG).show();
-            }
-            //Toast.makeText(this, "Putting..." + Integer.toString(mMovies.size()),Toast.LENGTH_LONG).show();
             outState.putParcelableArrayList("moviesList", mMovies);
         }
     }
@@ -112,7 +120,6 @@ public class DisplayMovies extends AppCompatActivity implements MovieAdapter.ILi
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        txtSearchCriteria.setText(mSearchCriteria);
     }
 
     @Override
@@ -128,12 +135,12 @@ public class DisplayMovies extends AppCompatActivity implements MovieAdapter.ILi
             case R.id.mnu_popular:
                 mSearchCriteria = "POPULAR";
                 writePageHeading();
-                CheckConnectivity checker = new CheckConnectivity(this, mSearchCriteria, myRecycler, this);
+                new interNetCheck().execute();
                 break;
             case R.id.mnu_topRated:
                 mSearchCriteria = "TOP RATED";
                 writePageHeading();
-                CheckConnectivity aChecker = new CheckConnectivity(this, mSearchCriteria, myRecycler, this);
+                new interNetCheck().execute();
                 break;
             case R.id.mnu_favorites:
                 mSearchCriteria = "FAVORITES";
@@ -153,7 +160,28 @@ public class DisplayMovies extends AppCompatActivity implements MovieAdapter.ILi
 
     @Override
     public void onMovieThumbnailClick(int clickedPos) {
-        Toast.makeText(this, "...WILL GO TO DETAILS ACTIVITY...", Toast.LENGTH_LONG).show();
+
+        try {
+            Movie clickedMovie = mMovies.get(clickedPos);
+            Intent myIntent = new Intent(this, TabsParent.class);
+            Bundle bundleOfExtras = new Bundle();
+            bundleOfExtras.putParcelableArrayList("favoriteMovies", mFavMovies);
+            bundleOfExtras.putParcelable("Movie_Object", clickedMovie);
+            myIntent.putExtras(bundleOfExtras);                     //Extras: PLURAL
+            startActivity(myIntent);
+        }catch(Exception ex){
+            Log.e(this.getClass().getSimpleName(), ex.getMessage());
+            Toast.makeText(this, ex.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onFavMovieClicked(int anID) {
+        Toast.makeText(this, "Fav Mov clicked", Toast.LENGTH_LONG).show();
+        /*Intent intent = new Intent(this, TabsParent.class);
+        intent.putExtra("movieID", anID);
+        startActivity(intent);
+        */
     }
 
     @Override
@@ -208,14 +236,34 @@ public class DisplayMovies extends AppCompatActivity implements MovieAdapter.ILi
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
 
-        mFavMoviesAdapter = new CustomCursorAdapter(this);
+        mFavMovies = new ArrayList<FavoriteMovie>();
+
+        data.moveToFirst();
+
+        while (!data.isAfterLast()){
+
+            int idDB = data.getInt(data.getColumnIndex(MovieContract.MovieEntry._ID));
+            int movieID = data.getInt(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_MOVIE_ID));
+            String movieTitle = data.getString(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_TITLE));
+            String synopsis = data.getString(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_SYNOPSIS));
+            String releaseDate = data.getString(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_RELEASE_DATE));
+            Double rating = data.getDouble(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_RATING));
+            String posterPath = data.getString(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_POSTER_PATH));
+
+            FavoriteMovie favoriteMovie = new FavoriteMovie(posterPath, synopsis, releaseDate, idDB, movieID, movieTitle, rating);
+            mFavMovies.add(favoriteMovie);
+
+            data.moveToNext();
+        }
+
+
+        mFavMoviesAdapter = new CustomCursorAdapter(this, this);
         mFavMoviesAdapter.swapCursor(data);
         if(mFavMoviesAdapter.getItemCount() > 0){
-            txtSearchCriteria.setText(mSearchCriteria);
-            mGridLayout = new GridLayoutManager(this, 2);
             myRecycler.setAdapter(mFavMoviesAdapter);
+            mFavMoviesAdapter.notifyDataSetChanged();
         } else {
-            Toast.makeText(this, "No Favorites!", Toast.LENGTH_LONG).show();
+            txtSearchCriteria.setText("NO FAVORITES!");
         }
     }
 
@@ -225,7 +273,150 @@ public class DisplayMovies extends AppCompatActivity implements MovieAdapter.ILi
     }
 
     private void writePageHeading(){
-        //myRecycler.setAdapter(null);
-        txtSearchCriteria.setText(mSearchCriteria.equals("POPULAR")? "MOST POPULAR":(mSearchCriteria.equals("TOP RATED")?"TOP RATED": "FAVORITES"));
+        myRecycler.setAdapter(null);
+        txtSearchCriteria.setText(mSearchCriteria.equals("POPULAR")? "MOST POPULAR":(mSearchCriteria.equals("TOP RATED")? "TOP RATED":"FAVORITES"));
+    }
+
+
+    private class interNetCheck extends AsyncTask<Void, Void, Void>{
+        boolean isOnline = false;
+        @Override
+        protected Void doInBackground(Void... params) {
+            try{
+                int timeOut_ms = 6000;
+                Socket aSock = new Socket();
+                SocketAddress aSockAdd = new InetSocketAddress("8.8.8.8", 53);
+                aSock.connect(aSockAdd, timeOut_ms);
+                aSock.close();
+                isOnline = true;
+            } catch (IOException ex){
+                isOnline = false;
+            }
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            if(isOnline){
+                new doDownload().execute();
+            } else {
+                startActivity(new Intent(DisplayMovies.this, NoInternet.class));
+            }
+        }
+    }
+
+    private class doDownload extends AsyncTask<String, Void, JSONObject>{
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            myRecycler.setAdapter(null);
+            buildAndroidURI();
+            Toast.makeText(DisplayMovies.this,"...Downloading, please wait...", Toast.LENGTH_LONG).show();
+        }
+
+        @Override
+        protected JSONObject doInBackground(String... params) {
+            JSONObject dJSONObj = null;
+
+            try{
+                OkHttpClient myClient = new OkHttpClient();
+                Request myRequest = new Request.Builder().url(mDownloadURI.toString()).build();
+                Response myResponse = myClient.newCall(myRequest).execute();
+                dJSONObj = new JSONObject(myResponse.body().string());
+            } catch (JSONException ex){
+                ex.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return dJSONObj;
+        }
+
+        @Override
+        protected void onPostExecute(JSONObject jsonObject) {
+
+            mMovies = new ArrayList<Movie>();
+
+            try {
+
+                JSONArray arrMovies = jsonObject.getJSONArray("results");
+
+                for (int i = 0; i < arrMovies.length(); i++){
+                    JSONObject aMovie = arrMovies.getJSONObject(i);
+                    String poster_path = MyConstants.IMAGE_BASE_URL + MyConstants.IMAGE_PREFERED_SIZE + aMovie.getString("poster_path");
+                    String overview = aMovie.getString("overview");
+                    boolean adult = aMovie.getBoolean("adult");
+                    String release_date = aMovie.getString("release_date");
+                    JSONArray genreIDs = aMovie.getJSONArray("genre_ids");
+                    List<Integer> genre_ids = new ArrayList<>();
+                    for(int j = 0; j < genreIDs.length(); j++){
+                        genre_ids.add(genreIDs.getInt(j));
+                    }
+
+                    int id = aMovie.getInt("id");
+                    String original_title = aMovie.getString("original_title");
+                    String original_language = aMovie.getString("original_language");
+                    String title = aMovie.getString("title");
+                    String backdrop_path = MyConstants.IMAGE_BASE_URL + MyConstants.IMAGE_PREFERED_SIZE + aMovie.getString("backdrop_path");
+                    double popularity = aMovie.getDouble("popularity");
+                    int vote_count = aMovie.getInt("vote_count");
+                    boolean video = aMovie.getBoolean("video");
+                    double vote_average = aMovie.getDouble("vote_average");
+
+                    Movie currentMovie = new Movie(poster_path, overview, adult, release_date,genre_ids, id, original_title, original_language, title, backdrop_path, popularity, vote_count, video, vote_average);
+                    mMovies.add(currentMovie);
+                }
+
+                mMovieAdapter = new MovieAdapter(DisplayMovies.this, mMovies, DisplayMovies.this);
+                myRecycler.setAdapter(mMovieAdapter);
+                mMovieAdapter.notifyDataSetChanged();                    //important
+
+            } catch (JSONException e) {
+                Toast.makeText(DisplayMovies.this, "JSON: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            } catch (Exception ex){
+                Toast.makeText(DisplayMovies.this, "Exp: " + ex.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+
+    private void buildAndroidURI(){
+        Uri builtUri;
+
+        switch (mSearchCriteria){
+            case "POPULAR":
+               /* builtUri = Uri.parse(MyConstants.BASE_URL).buildUpon()          //.buildUpon() serves as "?" - the question mark
+                        .appendQueryParameter(MyConstants.SORT_PARAM_KEY, MyConstants.POPULARITY_VALUE)
+                        .appendQueryParameter(MyConstants.API_KEY, MyConstants.dAPIkey)
+                        .build();
+                */
+                builtUri = Uri.parse(MyConstants.BASE_URL_POPULAR).buildUpon()
+                        .appendQueryParameter(MyConstants.API_KEY, MyConstants.dAPIkey)
+                        .build();
+                break;
+            case "TOP RATED":
+                /*builtUri = Uri.parse(MyConstants.BASE_URL).buildUpon()
+                        .appendQueryParameter(MyConstants.CERT_COUNTRY_KEY, MyConstants.dCertCountry)
+                        .appendQueryParameter(MyConstants.CERT_TYPE_KEY, MyConstants.dCertType)
+                        .appendQueryParameter(MyConstants.SORT_PARAM_KEY, MyConstants.TOP_RATE_VALUE)
+                        .appendQueryParameter(MyConstants.API_KEY, MyConstants.dAPIkey)
+                        .build();
+                */
+                builtUri = Uri.parse(MyConstants.BASE_URL_TOP_RATED).buildUpon()
+                        .appendQueryParameter(MyConstants.API_KEY, MyConstants.dAPIkey)
+                        .build();
+
+                break;
+            case "FAVORITES":
+                builtUri = Uri.parse(null);
+                break;
+            default:
+                builtUri = Uri.parse(null);
+                break;
+        }
+
+        mDownloadURI = builtUri;
     }
 }

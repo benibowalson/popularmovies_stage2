@@ -6,7 +6,7 @@ package com.example.android.popularmoviesstage2.utilities;
 
 public class MyConstants {
     public static final String API_KEY = "api_key";
-    public static final String dAPIkey = "[some key]";
+    public static final String dAPIkey = "[API_KEY]";
     public static final String BASE_URL = "https://api.themoviedb.org/3/movie";
     public static final String BASE_URL_X = "https://api.themoviedb.org/3/discover/movie";
     public static final String BASE_URL_POPULAR = BASE_URL + "/popular";

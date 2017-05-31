@@ -21,9 +21,11 @@ public class CustomCursorAdapter extends RecyclerView.Adapter<CustomCursorAdapte
 
     private Cursor mCursor;
     private Context mContext;
+    private IFavClickListener mListener;
 
-    public CustomCursorAdapter(Context ctx){
+    public CustomCursorAdapter(Context ctx, IFavClickListener listener){
         this.mContext = ctx;
+        this.mListener = listener;
     }
 
     @Override
@@ -38,20 +40,22 @@ public class CustomCursorAdapter extends RecyclerView.Adapter<CustomCursorAdapte
         //1. get indices for _id, movie_id, title, synopsis, release date, rating and poster path
         int idIndex = mCursor.getColumnIndex(MovieContract.MovieEntry._ID);
         int movieIDIndex = mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_MOVIE_ID);
-        int titleIndex = mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_TITLE);
+        /*int titleIndex = mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_TITLE);
         int synopsisIndex = mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_SYNOPSIS);
         int releaseDateIndex = mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_RELEASE_DATE);
         int ratingIndex = mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_RATING);
+        */
         int posterPathIndex = mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_POSTER_PATH);
 
         mCursor.moveToPosition(position);
 
         final int dbID = mCursor.getInt(idIndex);
         final int movieID = mCursor.getInt(movieIDIndex);
-        String movieTitle = mCursor.getString(titleIndex);
+        /*String movieTitle = mCursor.getString(titleIndex);
         String movieSynopsis = mCursor.getString(synopsisIndex);
         String movieReleaseDate = mCursor.getString(releaseDateIndex);
         double movieRating = mCursor.getDouble(ratingIndex);
+        */
         String moviePosterPath = mCursor.getString(posterPathIndex);
 
         //Associate the id to the current recycled view
@@ -79,13 +83,24 @@ public class CustomCursorAdapter extends RecyclerView.Adapter<CustomCursorAdapte
         return temp;
     }
 
-    class MovieViewHolder extends RecyclerView.ViewHolder {
+    public interface IFavClickListener {
+        void onFavMovieClicked(int movieID);
+    }
+
+    class MovieViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
 
         ImageView imgPoster;
 
         public MovieViewHolder(View itemView) {
             super(itemView);
             imgPoster = (ImageView)itemView.findViewById(R.id.iv_movie);
+        }
+
+        @Override
+        public void onClick(View v) {
+            int movieID = (int)v.getTag();
+            //int movieID = (int) itemView.getTag();
+            mListener.onFavMovieClicked(movieID);
         }
     }
 }

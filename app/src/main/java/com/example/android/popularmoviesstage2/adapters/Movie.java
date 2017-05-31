@@ -12,20 +12,20 @@ import java.util.List;
 
 public class Movie implements Parcelable {
 
-     String poster_path;
-    String overview;
-     boolean adult;
-     String release_date;
-     List<Integer> genre_ids;
-     int id;
-     String original_title;
-     String original_language;
-     String title;
-     String backdrop_path;
-     double popularity;
-     int vote_count;
-     boolean video;
-     double vote_average;
+     public String poster_path;
+     public String overview;
+     public boolean adult;
+     public String release_date;
+     public List<Integer> genre_ids;
+     public int id;
+     public String original_title;
+     public String original_language;
+     public String title;
+     public String backdrop_path;
+     public double popularity;
+     public int vote_count;
+     public boolean video;
+     public double vote_average;
 
     public Movie(String poster_path, String overview, boolean adult, String release_date, List<Integer> genre_ids, int id, String original_title, String original_language, String title, String backdrop_path, double popularity, int vote_count, boolean video, double vote_average) {
         this.poster_path = poster_path;

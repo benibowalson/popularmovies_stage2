@@ -3,16 +3,23 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context="fragments.overviewFragment">
+    android:id="@+id/ovFrag"
+    tools:context=".fragments.overviewFragment">
 
     <!-- TODO: Update blank fragment layout -->
 
-    <TextView
-        android:id="@+id/tvOverview"
+    <android.support.v4.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/frag_overview" />
+        android:layout_height="match_parent">
 
+        <TextView
+            android:id="@+id/tvOverview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="25sp"
+            android:padding="8dp"
+            android:text="@string/frag_overview" />
 
+    </android.support.v4.widget.NestedScrollView>
 
 </RelativeLayout>

@@ -10,6 +10,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.example.android.popularmoviesstage2.R;
 
 import java.util.ArrayList;
@@ -39,10 +40,11 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.CardForMovie
     @Override
     public void onBindViewHolder(CardForMovie holder, int position) {
         Movie aMovie = mMovies.get(position);
-        //holder.mTextView.setText(aMovie.toString());
-        //Glide
         Glide.with(mContext)
                 .load(aMovie.poster_path)
+                .diskCacheStrategy(DiskCacheStrategy.SOURCE)
+                //.placeholder()
+                //.error()
                 .into(holder.mImageView);
     }
 
@@ -55,10 +57,6 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.CardForMovie
         void onMovieThumbnailClick(int clickedPos);
     }
 
-    /*public MovieAdapter(AdapterOnClickHandler mClickHandler) {
-        this.mClickHandler = mClickHandler;
-    }
-    */
     public class CardForMovie extends RecyclerView.ViewHolder implements OnClickListener {
 
         public ImageView mImageView;
