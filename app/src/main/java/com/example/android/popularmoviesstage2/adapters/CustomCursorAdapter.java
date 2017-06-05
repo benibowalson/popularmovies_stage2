@@ -64,7 +64,6 @@ public class CustomCursorAdapter extends RecyclerView.Adapter<CustomCursorAdapte
                 .load(moviePosterPath)
                 .diskCacheStrategy(DiskCacheStrategy.SOURCE)
                 .into(holder.imgPoster);
-
     }
 
     @Override
@@ -94,6 +93,7 @@ public class CustomCursorAdapter extends RecyclerView.Adapter<CustomCursorAdapte
         public MovieViewHolder(View itemView) {
             super(itemView);
             imgPoster = (ImageView)itemView.findViewById(R.id.iv_movie);
+            itemView.setOnClickListener(this);
         }
 
         @Override

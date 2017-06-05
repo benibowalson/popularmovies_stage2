@@ -1,5 +1,6 @@
 package com.example.android.popularmoviesstage2.fragments;
 
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -135,9 +136,9 @@ public class trailersFragment extends Fragment implements TrailerAdapter.ITraile
             Intent webIntent = new Intent(Intent.ACTION_VIEW);
             webIntent.setData(Uri.parse(url));
             startActivity(webIntent);
-        } catch (Exception ex){
+
+        } catch (ActivityNotFoundException ex){
             Toast.makeText(getActivity(), "Youtube Exp: " + ex.getMessage(), Toast.LENGTH_LONG).show();
         }
-
     }
 }

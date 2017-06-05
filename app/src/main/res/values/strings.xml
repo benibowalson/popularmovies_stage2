@@ -16,4 +16,5 @@
     <string name="search_popular">POPULAR</string>
     <string name="search_top_rated">TOP RATED</string>
     <string name="search_favorites">FAVORITES</string>
+    <string name="no_internet">No Internet</string>
 </resources>

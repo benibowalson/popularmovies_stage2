@@ -6,14 +6,24 @@
     android:layout_height="match_parent"
     android:background="@color/mainBackground"
     tools:context="com.example.android.popularmoviesstage2.NoInternet">
-
-
+<!--
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar_noInternet"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        tools:layout_editor_absoluteY="0dp"
+        tools:layout_editor_absoluteX="8dp" />
+-->
     <TextView
         android:id="@+id/textView2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="30sp"
-        android:text="No Internet"
+        android:text="@string/no_internet"
         android:layout_marginLeft="8dp"
         app:layout_constraintLeft_toLeftOf="parent"
         android:layout_marginRight="8dp"

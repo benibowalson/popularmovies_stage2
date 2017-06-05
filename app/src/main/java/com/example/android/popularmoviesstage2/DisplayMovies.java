@@ -18,7 +18,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.android.popularmoviesstage2.adapters.CustomCursorAdapter;
-import com.example.android.popularmoviesstage2.adapters.FavoriteMovie;
 import com.example.android.popularmoviesstage2.adapters.Movie;
 import com.example.android.popularmoviesstage2.adapters.MovieAdapter;
 import com.example.android.popularmoviesstage2.data.MovieContract;
@@ -51,7 +50,7 @@ public class DisplayMovies extends AppCompatActivity
     private RecyclerView myRecycler;
     private MovieAdapter mMovieAdapter;
     private ArrayList<Movie> mMovies;
-    private ArrayList<FavoriteMovie> mFavMovies;
+    private Cursor mCursorFavMovies;
     private TextView txtSearchCriteria;
     private Uri mDownloadURI;
     private boolean DeviceIsOnline;
@@ -69,6 +68,8 @@ public class DisplayMovies extends AppCompatActivity
 
         mMovies = new ArrayList<Movie>();
 
+        getFavoriteMovies();
+
         if(savedInstanceState == null){     //new page
             mSearchCriteria = "POPULAR";
             writePageHeading();
@@ -76,26 +77,18 @@ public class DisplayMovies extends AppCompatActivity
         } else {                            //device rotate, etc
             mSearchCriteria = savedInstanceState.getString("searchCriteria");
             writePageHeading();
-                try {
+            try {
                 if(mSearchCriteria.equals("FAVORITES")){
-                    mFavMovies = new ArrayList<FavoriteMovie>();
-                    mFavMovies = savedInstanceState.getParcelableArrayList("favMoviesList");
-                    mFavMoviesAdapter = new CustomCursorAdapter(this, this);
-                    if (mFavMovies.size() > 0){
-                        myRecycler.setAdapter(mFavMoviesAdapter);
-                    } else {
-                        Toast.makeText(this, "No Favorites", Toast.LENGTH_LONG).show();
-                    }
-
+                    getSupportLoaderManager().restartLoader(TASK_LOADER_ID, null, this);
                 } else {
 
                     mMovies = new ArrayList<Movie>();
                     mMovies = savedInstanceState.getParcelableArrayList("moviesList");
                     if(mMovies == null){
-                        Toast.makeText(this, "Null Array", Toast.LENGTH_LONG).show();       //Test: Returns null
+                        Toast.makeText(this, "Null Array", Toast.LENGTH_LONG).show();
                     } else {
                         mMovieAdapter = new MovieAdapter(this, mMovies, this);
-                        myRecycler.setAdapter(mMovieAdapter);                                    //App Crashes here
+                        myRecycler.setAdapter(mMovieAdapter);
                     }
                 }
 
@@ -110,11 +103,7 @@ public class DisplayMovies extends AppCompatActivity
         super.onSaveInstanceState(outState);
 
         outState.putString("searchCriteria", mSearchCriteria);
-        if(mSearchCriteria.equals("FAVORITES")){
-            outState.putParcelableArrayList("favMoviesList", mFavMovies);
-        } else {
-            outState.putParcelableArrayList("moviesList", mMovies);
-        }
+        outState.putParcelableArrayList("moviesList", mMovies);
     }
 
     @Override
@@ -145,7 +134,9 @@ public class DisplayMovies extends AppCompatActivity
             case R.id.mnu_favorites:
                 mSearchCriteria = "FAVORITES";
                 writePageHeading();
-                getFavoriteMovies();
+                mFavMoviesAdapter = new CustomCursorAdapter(this, this);
+                mFavMoviesAdapter.swapCursor(mCursorFavMovies);
+                myRecycler.setAdapter(mFavMoviesAdapter);
                 break;
             default:
                 break;
@@ -165,7 +156,6 @@ public class DisplayMovies extends AppCompatActivity
             Movie clickedMovie = mMovies.get(clickedPos);
             Intent myIntent = new Intent(this, TabsParent.class);
             Bundle bundleOfExtras = new Bundle();
-            bundleOfExtras.putParcelableArrayList("favoriteMovies", mFavMovies);
             bundleOfExtras.putParcelable("Movie_Object", clickedMovie);
             myIntent.putExtras(bundleOfExtras);                     //Extras: PLURAL
             startActivity(myIntent);
@@ -236,34 +226,14 @@ public class DisplayMovies extends AppCompatActivity
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
 
-        mFavMovies = new ArrayList<FavoriteMovie>();
+        mCursorFavMovies = data;
 
-        data.moveToFirst();
+        if(mSearchCriteria.equals("FAVORITES")){
 
-        while (!data.isAfterLast()){
+            mFavMoviesAdapter = new CustomCursorAdapter(this, this);
+            mFavMoviesAdapter.swapCursor(mCursorFavMovies);
 
-            int idDB = data.getInt(data.getColumnIndex(MovieContract.MovieEntry._ID));
-            int movieID = data.getInt(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_MOVIE_ID));
-            String movieTitle = data.getString(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_TITLE));
-            String synopsis = data.getString(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_SYNOPSIS));
-            String releaseDate = data.getString(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_RELEASE_DATE));
-            Double rating = data.getDouble(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_RATING));
-            String posterPath = data.getString(data.getColumnIndex(MovieContract.MovieEntry.COLUMN_POSTER_PATH));
-
-            FavoriteMovie favoriteMovie = new FavoriteMovie(posterPath, synopsis, releaseDate, idDB, movieID, movieTitle, rating);
-            mFavMovies.add(favoriteMovie);
-
-            data.moveToNext();
-        }
-
-
-        mFavMoviesAdapter = new CustomCursorAdapter(this, this);
-        mFavMoviesAdapter.swapCursor(data);
-        if(mFavMoviesAdapter.getItemCount() > 0){
             myRecycler.setAdapter(mFavMoviesAdapter);
-            mFavMoviesAdapter.notifyDataSetChanged();
-        } else {
-            txtSearchCriteria.setText("NO FAVORITES!");
         }
     }
 
@@ -380,7 +350,6 @@ public class DisplayMovies extends AppCompatActivity
             }
         }
     }
-
 
     private void buildAndroidURI(){
         Uri builtUri;

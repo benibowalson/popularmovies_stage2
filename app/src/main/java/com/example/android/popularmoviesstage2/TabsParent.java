@@ -4,15 +4,18 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
 import android.support.v4.content.Loader;
 import android.support.v4.view.ViewPager;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.MenuItem;
 import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -36,7 +39,7 @@ public class TabsParent extends AppCompatActivity implements TabLayout.OnTabSele
     ImageView ivPoster;
     Movie currentMovie;
     FavoriteMovie currentFavMovie;
-    Cursor mMoviesData;
+    Cursor mCurMoviesData;
     PagerAdapter myPagerAdapter;
 
     private static final int LOADER_TASK_ID = 1;
@@ -49,6 +52,9 @@ public class TabsParent extends AppCompatActivity implements TabLayout.OnTabSele
         setContentView(R.layout.activity_tabsparent);
         Toolbar toolbar = (Toolbar)findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        ActionBar actionBar = getSupportActionBar();
+        actionBar.setDisplayHomeAsUpEnabled(true);
 
         tabLayout = (TabLayout) findViewById(R.id.tabLayout);
 
@@ -175,32 +181,46 @@ public class TabsParent extends AppCompatActivity implements TabLayout.OnTabSele
             }
         } else {
             //Remove from favorites
+
             if(alreadyFavorite(id)){
-                int dbID = 0;
-                Cursor nCursor = getContentResolver().query(MovieContract.MovieEntry.CONTENT_URI, null, null, null, null);
-                if(nCursor != null){
-                    nCursor.moveToFirst();
-                    while(!nCursor.isAfterLast()){
-                        int movieID = nCursor.getInt(nCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_MOVIE_ID));
-                        if(movieID == id){
-                            dbID = nCursor.getInt(nCursor.getColumnIndex(MovieContract.MovieEntry._ID));
-                            break;
+
+                AsyncTask<Void, Void, Void> doRemove = new AsyncTask<Void, Void, Void>() {
+                    @Override
+                    protected Void doInBackground(Void... params) {
+
+                        int dbID = 0;
+                        Cursor nCursor = getContentResolver().query(MovieContract.MovieEntry.CONTENT_URI, null, null, null, null);
+                        if(nCursor != null){
+                            nCursor.moveToFirst();
+                            while(!nCursor.isAfterLast()){
+                                int movieID = nCursor.getInt(nCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_MOVIE_ID));
+                                if(movieID == currentMovie.id){
+                                    dbID = nCursor.getInt(nCursor.getColumnIndex(MovieContract.MovieEntry._ID));
+                                    break;
+                                }
+                                nCursor.moveToNext();
+                            }
+
+
+                            String stringID = Integer.toString(dbID);
+                            Uri uri = MovieContract.MovieEntry.CONTENT_URI;
+                            uri = uri.buildUpon().appendPath(stringID).build();
+
+                            int nRows = getContentResolver().delete(uri, null, null);
+
+                            nCursor.close();
                         }
-                        nCursor.moveToNext();
+
+                        return null;
                     }
 
-
-                    String stringID = Integer.toString(dbID);
-                    Uri uri = MovieContract.MovieEntry.CONTENT_URI;
-                    uri = uri.buildUpon().appendPath(stringID).build();
-
-                    int nRows = getContentResolver().delete(uri, null, null);
-                    getSupportLoaderManager().restartLoader(LOADER_TASK_ID, null, this);
-
-                    nCursor.close();
-
-                    Toast.makeText(this, "Removed from favorites", Toast.LENGTH_SHORT).show();
-                }
+                    @Override
+                    protected void onPostExecute(Void aVoid) {
+                        Toast.makeText(TabsParent.this, "Removed from favorites", Toast.LENGTH_SHORT).show();
+                        getSupportLoaderManager().restartLoader(LOADER_TASK_ID, null, TabsParent.this);
+                        super.onPostExecute(aVoid);
+                    }
+                }.execute();
             }
         }
     }
@@ -211,9 +231,9 @@ public class TabsParent extends AppCompatActivity implements TabLayout.OnTabSele
 
             @Override
             protected void onStartLoading() {
-                if (mMoviesData != null) {
+                if (mCurMoviesData != null) {
                     // Delivers any previously loaded data immediately
-                    deliverResult(mMoviesData);
+                    deliverResult(mCurMoviesData);
                 } else {
                     // Force a new load
                     forceLoad();
@@ -238,7 +258,7 @@ public class TabsParent extends AppCompatActivity implements TabLayout.OnTabSele
             }
 
             public void deliverResult(Cursor data) {
-                mMoviesData = data;
+                mCurMoviesData = data;
                 super.deliverResult(data);
             }
 
@@ -247,7 +267,7 @@ public class TabsParent extends AppCompatActivity implements TabLayout.OnTabSele
 
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
-        mMoviesData = data;
+        mCurMoviesData = data;
         chkFavorite.setChecked((alreadyFavorite(currentMovie.id)));
     }
 
@@ -256,17 +276,28 @@ public class TabsParent extends AppCompatActivity implements TabLayout.OnTabSele
 
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId()){
+            case android.R.id.home:
+                onBackPressed();
+                return true;
+            default: return super.onOptionsItemSelected(item);
+        }
+    }
+
     boolean alreadyFavorite(int aMovieID){
 
         boolean isFavorite = false;
-        mMoviesData.moveToFirst();
-        while(!mMoviesData.isAfterLast() && !isFavorite){
-            int movieID = mMoviesData.getInt(mMoviesData.getColumnIndex(MovieContract.MovieEntry.COLUMN_MOVIE_ID));
+        mCurMoviesData.moveToFirst();
+        while(!mCurMoviesData.isAfterLast() && !isFavorite){
+            int movieID = mCurMoviesData.getInt(mCurMoviesData.getColumnIndex(MovieContract.MovieEntry.COLUMN_MOVIE_ID));
             if(movieID == aMovieID){
                 isFavorite = true;
             }
 
-            mMoviesData.moveToNext();
+            mCurMoviesData.moveToNext();
         }
 
         return isFavorite;

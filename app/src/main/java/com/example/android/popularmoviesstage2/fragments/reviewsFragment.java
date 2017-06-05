@@ -143,6 +143,4 @@ public class reviewsFragment extends Fragment implements ReviewAdapter.IDoListen
         webIntent.setData(Uri.parse(url));
         startActivity(webIntent);
     }
-
-
 }
