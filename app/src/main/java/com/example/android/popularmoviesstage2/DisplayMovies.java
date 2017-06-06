@@ -68,8 +68,6 @@ public class DisplayMovies extends AppCompatActivity
 
         mMovies = new ArrayList<Movie>();
 
-        getFavoriteMovies();
-
         if(savedInstanceState == null){     //new page
             mSearchCriteria = "POPULAR";
             writePageHeading();
@@ -134,9 +132,7 @@ public class DisplayMovies extends AppCompatActivity
             case R.id.mnu_favorites:
                 mSearchCriteria = "FAVORITES";
                 writePageHeading();
-                mFavMoviesAdapter = new CustomCursorAdapter(this, this);
-                mFavMoviesAdapter.swapCursor(mCursorFavMovies);
-                myRecycler.setAdapter(mFavMoviesAdapter);
+                getSupportLoaderManager().restartLoader(TASK_LOADER_ID, null, this);
                 break;
             default:
                 break;
